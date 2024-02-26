@@ -81,7 +81,7 @@ class MutualExclusionTest {
             sys.reqLock(i)
             sys.reqLock(j)
             val set = mutableSetOf(i, j)
-            while (!set.isEmpty()) {
+            while (set.isNotEmpty()) {
                 val k = sys.awaitAnyLock()
                 check(set.remove(k))
                 sys.reqUnlock(k)
