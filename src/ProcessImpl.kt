@@ -12,6 +12,7 @@ class ProcessImpl(private val env: Environment) : Process {
     private var forks = MutableList(env.nProcesses + 1) { pos ->
         pos == 0 || pos >= env.processId
     }
+    private var dirty = MutableList(env.nProcesses + 1) { false }
     private var isLockPending = false
     private var locked = false
 
@@ -63,6 +64,13 @@ class ProcessImpl(private val env: Environment) : Process {
     override fun onUnlockRequest() {
         locked = false
         env.unlocked()
+
+        for (i in 1..<forks.size) {
+            if (i != env.processId) {
+                dirty[i] = true
+            }
+        }
+
         for ((i, req) in requests.withIndex()) {
             if (req) {
                 if (tryFlipFork(i)) {
@@ -74,13 +82,20 @@ class ProcessImpl(private val env: Environment) : Process {
 
     private fun tryFlipFork(i: Int): Boolean {
         if (forks[i]) {
-            if (locked || isLockPending) {
+            if (locked || (isLockPending && !dirty[i])) {
                 return false
             }
             forks[i] = false
+            dirty[i] = false
         }
         env.send(i) {
             writeEnum(MsgType.OK)
+        }
+
+        if (isLockPending) {
+            env.send(i) {
+                writeEnum(MsgType.REQ)
+            }
         }
 
         return true
