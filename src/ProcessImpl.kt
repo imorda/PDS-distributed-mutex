@@ -63,7 +63,6 @@ class ProcessImpl(private val env: Environment) : Process {
     override fun onUnlockRequest() {
         locked = false
         env.unlocked()
-
         for ((i, req) in requests.withIndex()) {
             if (req) {
                 if (tryFlipFork(i)) {
